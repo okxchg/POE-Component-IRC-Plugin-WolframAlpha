@@ -1,134 +1,148 @@
-NAME
-    POE::Component::IRC::Plugin::WolframAlpha - Request WolframAlpha
-    database from irc bot
+# NAME
 
-SYNOPSIS
-        use POE;
-        use POE::Component::IRC;
-        use POE::Component::IRC::Plugin::BotCommand;
-        use POE::Component::IRC::Plugin::WolframAlpha;
+POE::Component::IRC::Plugin::WolframAlpha - Request WolframAlpha database from irc bot
+
+# SYNOPSIS
+
+    use POE;
+    use POE::Component::IRC;
+    use POE::Component::IRC::Plugin::BotCommand;
+    use POE::Component::IRC::Plugin::WolframAlpha;
      
-        my $irc = POE::Component::IRC->spawn(
-            nick   => 'wabot',
-            server => 'irc.freenode.net',
-        );
+
+    my $irc = POE::Component::IRC->spawn(
+        nick   => 'wabot',
+        server => 'irc.freenode.net',
+    );
      
-        POE::Session->create(
-            package_states => [
-                main => [ qw(_start irc_001 irc_botcmd_wa irc_botcmd_war irc_botcmd_dump) ],
-            ],
-        );
+
+    POE::Session->create(
+        package_states => [
+            main => [ qw(_start irc_001 irc_botcmd_wa irc_botcmd_war irc_botcmd_dump) ],
+        ],
+    );
      
-        $poe_kernel->run();
+
+    $poe_kernel->run();
      
-        sub _start {
-            $irc->plugin_add('BotCommand', POE::Component::IRC::Plugin::BotCommand->new(
-                Commands => {
-                    wa   => 'Request wolframalpha',
-                    war  => 'Display results from previous wa requests (args title id type)',
-                    dump => 'Dump request cache im pm',
-                }
-            ));
-            $irc->plugin_add('WolframAlpha', POE::Component::IRC::Plugin::WolframAlpha->new(
-                    appid => 'LY4T94-KEWR56TEHX'
-            ));
-            $irc->yield(register => 'all');
-            $irc->yield(connect => { });
-        }
+
+    sub _start {
+        $irc->plugin_add('BotCommand', POE::Component::IRC::Plugin::BotCommand->new(
+            Commands => {
+                wa   => 'Request wolframalpha',
+                war  => 'Display results from previous wa requests (args title id type)',
+                dump => 'Dump request cache im pm',
+            }
+        ));
+        $irc->plugin_add('WolframAlpha', POE::Component::IRC::Plugin::WolframAlpha->new(
+                appid => 'LY4T94-KEWR56TEHX'
+        ));
+        $irc->yield(register => 'all');
+        $irc->yield(connect => { });
+    }
      
-        sub irc_001 {
-            $irc->yield(join => '#wabottest');
-            return;
-        }
+
+    sub irc_001 {
+        $irc->yield(join => '#wabottest');
+        return;
+    }
      
-        sub irc_botcmd_wa {
-            my ($kernel, $nick, $channel, $req) = @_[KERNEL, ARG0, ARG1, ARG2];
 
-            $kernel->yield(wolfram_req => {channel => $channel, input => $req});
-        }
+    sub irc_botcmd_wa {
+        my ($kernel, $nick, $channel, $req) = @_[KERNEL, ARG0, ARG1, ARG2];
 
-        sub irc_botcmd_war {
-            my ($kernel, $nick, $channel, $req) = @_[KERNEL, ARG0, ARG1, ARG2];
+        $kernel->yield(wolfram_req => {channel => $channel, input => $req});
+    }
 
-            $kernel->yield(wolfram_display_pod => $channel, split /\s/, $req);
-        }
+    sub irc_botcmd_war {
+        my ($kernel, $nick, $channel, $req) = @_[KERNEL, ARG0, ARG1, ARG2];
 
-        sub irc_botcmd_dump {
-            my ($kernel, $nick, $channel, $req) = @_[KERNEL, ARG0, ARG1, ARG2];
+        $kernel->yield(wolfram_display_pod => $channel, split /\s/, $req);
+    }
 
-            ($nick) = split /!/, $nick;
-            $kernel->yield(wolfram_dump_cache => $nick);
-        }
+    sub irc_botcmd_dump {
+        my ($kernel, $nick, $channel, $req) = @_[KERNEL, ARG0, ARG1, ARG2];
 
-DESCRIPTION
-    This plugins allows you to asynchronously make wolframalpha requests
-    from your IRC bot by sending POE events.
+        ($nick) = split /!/, $nick;
+        $kernel->yield(wolfram_dump_cache => $nick);
+    }
 
-  METHODS
-    new Create new plugin object. Arguments:
+# DESCRIPTION
 
-        *cache_size*
-            Control cache size, default is 30.
+This plugins allows you to asynchronously make wolframalpha requests from your
+IRC bot by sending POE events.
 
-        *max_concurrency*
-            How many requests can be running simulatenously.
+## METHODS
 
-        *appid*
-            Mandatory. Specify your WolframAlpha application id.
+- __new__
 
-    cache_size
-            Get/set cache_size.
+    Create new plugin object. Arguments:
 
-    max_concurrency
-            Get/set max_concurrency
+    - _cache\_size_
 
-    appid
-            Get appid.
+        Control cache size, default is 30.
 
-INPUT EVENTS
-    wolfram_req
-        Request WolframAlpha database. Results are stored in internal cache
-        and list of avalaible pods (see WWW::WolframAlpha or WA api
-        documentation) is returned into the channel.
+    - _max\_concurrency_
 
-        ARG0 is a hash reference which can have following keys: 'request':
-        text of the request, this is mandatory 'channel': channel where to
-        send result of request, mandatory if quiet is not set 'quiet' :
-        don't dump anything into channel 'oevent' : send this event to
-        current session when request is done
+        How many requests can be running simulatenously.
 
-        Output event recieves hash in ARG0 like this: 'request': original
-        request 'pods' : hash reference with pod title as keys and array of
-        subpods as values, can be undef if there was no results or an error
-        'error' : set to error message if there was an error
+    - _appid_
 
-    wolfram_display_pod
-        Display pod from cache in channel. ARG0 is title of pod, ARG1 can
-        contain id of a result (or the last result is selected), ARG2 can
-        contain type of information requested (currently plaintext or img
-        are supported).
+        Mandatory. Specify your WolframAlpha application id.
 
-    wolfram_dump
-        Dump contents of result cache into channel. ARG0 is channel name.
+- __cache\_size__
 
-SEE ALSO
-    POE::Component::IRC::Plugin POE::Component::IRC =head1 AUTHOR
+        Get/set cache_size.
+- __max\_concurrency__
 
-    Oliver Kindernay, <oliver.kindernay@gmail.cmm<gt>
+        Get/set max_concurrency
+- __appid__
 
-COPYRIGHT AND LICENSE
-    Copyright (C) 2013 by Oliver Kindernay
+        Get appid.
 
-    This library is free software; you can redistribute it and/or modify it
-    under the same terms as Perl itself, either Perl version 5.12.3 or, at
-    your option, any later version of Perl 5 you may have available.
+# INPUT EVENTS
 
-POD ERRORS
-    Hey! The above document had some coding errors, which are explained
-    below:
+- __wolfram\_req__
 
-    Around line 446:
-        Deleting unknown formatting code M<>
+    Request WolframAlpha database. Results are stored in internal cache
+    and list of avalaible pods (see WWW::WolframAlpha or WA api documentation) is
+    returned into the channel.
 
-        Deleting unknown formatting code M<>
+    ARG0 is a hash reference which can have following keys:
+        'request': text of the request, this is mandatory
+        'channel': channel where to send result of request, mandatory if quiet is not set
+        'quiet'  : don't dump anything into channel
+        'oevent' : send this event to current session when request is done
+
+    Output event recieves hash in ARG0 like this:
+        'request': original request
+        'pods'   : hash reference with pod title as keys and array of subpods as
+                   values, can be undef if there was no results or an error 
+        'error'  : set to error message if there was an error
+
+- __wolfram\_display\_pod__
+
+    Display pod from cache in channel. ARG0 is title of pod, ARG1 can contain id of
+    a result (or the last result is selected), ARG2 can contain type of information
+    requested (currently plaintext or img are supported). 
+
+- __wolfram\_dump__
+
+    Dump contents of result cache into channel. ARG0 is channel name.
+
+# SEE ALSO
+
+M<POE::Component::IRC::Plugin> M<POE::Component::IRC>
+=head1 AUTHOR
+
+Oliver Kindernay, <oliver.kindernay@gmail.cmm<gt>
+
+# COPYRIGHT AND LICENSE
+
+Copyright (C) 2013 by Oliver Kindernay
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.12.3 or,
+at your option, any later version of Perl 5 you may have available.
+
 
