@@ -1,0 +1,6 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/POE-Component-IRC-Plugin-WolframAlpha.t
+lib/POE/Component/IRC/Plugin/WolframAlpha.pm
