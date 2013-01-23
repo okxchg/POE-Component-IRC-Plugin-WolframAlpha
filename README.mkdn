@@ -1,0 +1,148 @@
+# NAME
+
+POE::Component::IRC::Plugin::WolframAlpha - Request WolframAlpha database from irc bot
+
+# SYNOPSIS
+
+    use POE;
+    use POE::Component::IRC;
+    use POE::Component::IRC::Plugin::BotCommand;
+    use POE::Component::IRC::Plugin::WolframAlpha;
+     
+
+    my $irc = POE::Component::IRC->spawn(
+        nick   => 'wabot',
+        server => 'irc.freenode.net',
+    );
+     
+
+    POE::Session->create(
+        package_states => [
+            main => [ qw(_start irc_001 irc_botcmd_wa irc_botcmd_war irc_botcmd_dump) ],
+        ],
+    );
+     
+
+    $poe_kernel->run();
+     
+
+    sub _start {
+        $irc->plugin_add('BotCommand', POE::Component::IRC::Plugin::BotCommand->new(
+            Commands => {
+                wa   => 'Request wolframalpha',
+                war  => 'Display results from previous wa requests (args title id type)',
+                dump => 'Dump request cache im pm',
+            }
+        ));
+        $irc->plugin_add('WolframAlpha', POE::Component::IRC::Plugin::WolframAlpha->new(
+                appid => 'LY4T94-KEWR56TEHX'
+        ));
+        $irc->yield(register => 'all');
+        $irc->yield(connect => { });
+    }
+     
+
+    sub irc_001 {
+        $irc->yield(join => '#wabottest');
+        return;
+    }
+     
+
+    sub irc_botcmd_wa {
+        my ($kernel, $nick, $channel, $req) = @_[KERNEL, ARG0, ARG1, ARG2];
+
+        $kernel->yield(wolfram_req => {channel => $channel, input => $req});
+    }
+
+    sub irc_botcmd_war {
+        my ($kernel, $nick, $channel, $req) = @_[KERNEL, ARG0, ARG1, ARG2];
+
+        $kernel->yield(wolfram_display_pod => $channel, split /\s/, $req);
+    }
+
+    sub irc_botcmd_dump {
+        my ($kernel, $nick, $channel, $req) = @_[KERNEL, ARG0, ARG1, ARG2];
+
+        ($nick) = split /!/, $nick;
+        $kernel->yield(wolfram_dump_cache => $nick);
+    }
+
+# DESCRIPTION
+
+This plugins allows you to asynchronously make wolframalpha requests from your
+IRC bot by sending POE events.
+
+## METHODS
+
+- __new__
+
+    Create new plugin object. Arguments:
+
+    - _cache\_size_
+
+        Control cache size, default is 30.
+
+    - _max\_concurrency_
+
+        How many requests can be running simulatenously.
+
+    - _appid_
+
+        Mandatory. Specify your WolframAlpha application id.
+
+- __cache\_size__
+
+        Get/set cache_size.
+- __max\_concurrency__
+
+        Get/set max_concurrency
+- __appid__
+
+        Get appid.
+
+# INPUT EVENTS
+
+- __wolfram\_req__
+
+    Request WolframAlpha database. Results are stored in internal cache
+    and list of avalaible pods (see WWW::WolframAlpha or WA api documentation) is
+    returned into the channel.
+
+    ARG0 is a hash reference which can have following keys:
+        'request': text of the request, this is mandatory
+        'channel': channel where to send result of request, mandatory if quiet is not set
+        'quiet'  : don't dump anything into channel
+        'oevent' : send this event to current session when request is done
+
+    Output event recieves hash in ARG0 like this:
+        'request': original request
+        'pods'   : hash reference with pod title as keys and array of subpods as
+                   values, can be undef if there was no results or an error 
+        'error'  : set to error message if there was an error
+
+- __wolfram\_display\_pod__
+
+    Display pod from cache in channel. ARG0 is title of pod, ARG1 can contain id of
+    a result (or the last result is selected), ARG2 can contain type of information
+    requested (currently plaintext or img are supported). 
+
+- __wolfram\_dump__
+
+    Dump contents of result cache into channel. ARG0 is channel name.
+
+# SEE ALSO
+
+M<POE::Component::IRC::Plugin> M<POE::Component::IRC>
+=head1 AUTHOR
+
+Oliver Kindernay, <oliver.kindernay@gmail.cmm<gt>
+
+# COPYRIGHT AND LICENSE
+
+Copyright (C) 2013 by Oliver Kindernay
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.12.3 or,
+at your option, any later version of Perl 5 you may have available.
+
+
