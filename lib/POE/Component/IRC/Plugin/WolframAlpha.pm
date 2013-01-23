@@ -223,6 +223,8 @@ sub _got_wa_result {
     my ($self, $kernel, $stdout_chunks, $stderr_chunks, $ret, $req) = 
         @_[0, KERNEL, ARG1, ARG2, ARG4, ARG5];
 
+    $self->{cur_concurrency}--;
+
     # ret = 0, successful query
     if (!$ret) {
         if (!$stdout_chunks) {
